@@ -1,14 +1,23 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut } from 'firebase/auth';
 import { initializeFirestore } from 'firebase/firestore';
-import firebaseConfig from '../../firebase-applet-config.json';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAQ_AKSnBgljWkdp5G-QaNooi7HF5qxSnQ",
+  authDomain: "chunktapp.firebaseapp.com",
+  projectId: "chunktapp",
+  storageBucket: "chunktapp.firebasestorage.app",
+  messagingSenderId: "314007461631",
+  appId: "1:314007461631:web:eb1f97bd5a0fdf932f76ca",
+  measurementId: "G-NYK6PV28L6"
+};
 
 const app = initializeApp(firebaseConfig);
 
-// Use the database ID directly from the config if it exists. Force long-polling to avoid WebSocket issues.
+// Force long-polling to avoid WebSocket issues.
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
-}, (firebaseConfig as any).firestoreDatabaseId); 
+}); 
 
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();

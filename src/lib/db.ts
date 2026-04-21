@@ -176,7 +176,9 @@ export const saveGraph = async (nodes: KnowledgeNode[], links: KnowledgeLink[]) 
   for (const node of nodes) {
     const { id, label, type, content, source, parentId, courseId, tags, notes, examples, order } = node;
     const finalOrder = order !== undefined ? order : nextOrder++;
-    batch.set(doc(db, 'nodes', id), {
+    
+    // Clean up undefined values and replace them with null
+    const cleanNodeData: any = {
       userId: user.uid,
       courseId: courseId || null,
       label: label || '',
@@ -188,7 +190,38 @@ export const saveGraph = async (nodes: KnowledgeNode[], links: KnowledgeLink[]) 
       tags: tags && tags.length > 0 ? tags.slice(0, 20) : null,
       notes: notes || null,
       examples: examples || null
-    }, { merge: true });
+    };
+
+    // Remove any explicitly undefined properties (though we set them to null above, 
+    // it's good practice to ensure no nested undefined exists)
+    Object.keys(cleanNodeData).forEach(key => {
+      if (cleanNodeData[key] === undefined) {
+        cleanNodeData[key] = null;
+      }
+    });
+
+    // Also sanitize nested arrays ensuring no undefined values
+    if (cleanNodeData.notes) {
+      cleanNodeData.notes = cleanNodeData.notes.map((n: any) => {
+        const cleanNote = { ...n };
+        Object.keys(cleanNote).forEach(k => {
+          if (cleanNote[k] === undefined) cleanNote[k] = null;
+        });
+        return cleanNote;
+      });
+    }
+
+    if (cleanNodeData.examples) {
+      cleanNodeData.examples = cleanNodeData.examples.map((e: any) => {
+        const cleanEx = { ...e };
+        Object.keys(cleanEx).forEach(k => {
+          if (cleanEx[k] === undefined) cleanEx[k] = null;
+        });
+        return cleanEx;
+      });
+    }
+
+    batch.set(doc(db, 'nodes', id), cleanNodeData, { merge: true });
     
     operations++;
     if (operations >= 480) await commitBatch();
@@ -201,14 +234,22 @@ export const saveGraph = async (nodes: KnowledgeNode[], links: KnowledgeLink[]) 
     
     const linkDocId = `link_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 7)}`;
     
-    batch.set(doc(db, 'links', linkDocId), {
+    const cleanLinkData: any = {
       userId: user.uid,
       courseId: link.courseId || null,
       source: sourceId,
       target: targetId,
       label: link.label || null,
       dashed: link.dashed || false
-    }, { merge: true });
+    };
+
+    Object.keys(cleanLinkData).forEach(key => {
+      if (cleanLinkData[key] === undefined) {
+        cleanLinkData[key] = null;
+      }
+    });
+
+    batch.set(doc(db, 'links', linkDocId), cleanLinkData, { merge: true });
     
     operations++;
     if (operations >= 480) await commitBatch();
@@ -263,7 +304,7 @@ export const saveDocument = async (docObj: DocumentRecord) => {
   const user = getCurrentUser();
   if (!user) return;
   
-  await setDoc(doc(db, 'documents', docObj.id), {
+  const cleanDocData: any = {
     userId: user.uid,
     courseId: docObj.courseId || null,
     name: docObj.name,
@@ -271,9 +312,17 @@ export const saveDocument = async (docObj: DocumentRecord) => {
     size: 0,
     parsedAt: Timestamp.fromMillis(docObj.uploadDate),
     // store actual content too as an extra since we need it in UI
-    content: docObj.content,
-    type: docObj.type
-  }, { merge: true });
+    content: docObj.content || null,
+    type: docObj.type || null
+  };
+
+  Object.keys(cleanDocData).forEach(key => {
+    if (cleanDocData[key] === undefined) {
+      cleanDocData[key] = null;
+    }
+  });
+
+  await setDoc(doc(db, 'documents', docObj.id), cleanDocData, { merge: true });
 };
 
 export const loadDocuments = async (): Promise<DocumentRecord[]> => {

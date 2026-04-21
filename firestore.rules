@@ -1,0 +1,124 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Primitives
+    function isSignedIn() { 
+      return request.auth != null && request.auth.token.email_verified == true; 
+    }
+    
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+    
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    function isValidStringLength(val, maxLen) {
+      return val is string && val.size() <= maxLen;
+    }
+
+    // Validation Blueprints
+    function isValidCourse(data, isCreate) {
+      return (isCreate ? data.keys().hasAll(['userId', 'title', 'createdAt', 'lastModified']) : true)
+        && data.userId == request.auth.uid
+        && isValidStringLength(data.title, 200)
+        && (data.description == null || isValidStringLength(data.description, 1000))
+        && (data.order == null || data.order is number)
+        && data.createdAt is timestamp
+        && data.lastModified is timestamp;
+    }
+
+    function isValidNode(data, isCreate) {
+      return (isCreate ? data.keys().hasAll(['userId', 'label', 'type']) : true)
+        && data.userId == request.auth.uid
+        && (data.courseId == null || isValidId(data.courseId))
+        && isValidStringLength(data.label, 200)
+        && data.type in ['chapter', 'point', 'subpoint', 'concept']
+        && (data.content == null || isValidStringLength(data.content, 50000))
+        && (data.source == null || isValidStringLength(data.source, 200))
+        && (data.parentId == null || isValidId(data.parentId))
+        && (data.order == null || data.order is number)
+        && (data.tags == null || (data.tags is list && data.tags.size() <= 20))
+        && (data.notes == null || (data.notes is list && data.notes.size() <= 50))
+        && (data.examples == null || (data.examples is list && data.examples.size() <= 50));
+    }
+
+    function isValidLink(data, isCreate) {
+      return (isCreate ? data.keys().hasAll(['userId', 'source', 'target']) : true)
+        && data.userId == request.auth.uid
+        && (data.courseId == null || isValidId(data.courseId))
+        && isValidId(data.source)
+        && isValidId(data.target)
+        && (data.label == null || isValidStringLength(data.label, 100))
+        && (data.dashed == null || data.dashed is bool);
+    }
+    
+    function isValidDocument(data, isCreate) {
+      return (isCreate ? data.keys().hasAll(['userId', 'name', 'status']) : true)
+        && data.userId == request.auth.uid
+        && (data.courseId == null || isValidId(data.courseId))
+        && isValidStringLength(data.name, 200)
+        && data.status in ['parsing', 'error', 'success']
+        && (data.size == null || data.size is number)
+        && (data.parsedAt == null || data.parsedAt is timestamp)
+        && (data.content == null || isValidStringLength(data.content, 500000))
+        && (data.type == null || isValidStringLength(data.type, 100));
+    }
+
+    // Collections
+    match /courses/{courseId} {
+      allow get: if isSignedIn() && isValidId(courseId) && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(courseId) 
+                    && isValidCourse(incoming(), true);
+      allow update: if isSignedIn() && isValidId(courseId) && existing().userId == request.auth.uid
+                    && isValidCourse(incoming(), false)
+                    && incoming().userId == existing().userId
+                    && incoming().createdAt == existing().createdAt
+                    && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'order', 'lastModified']);
+      allow delete: if isSignedIn() && isValidId(courseId) && existing().userId == request.auth.uid;
+    }
+
+    match /nodes/{nodeId} {
+      allow get: if isSignedIn() && isValidId(nodeId) && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(nodeId) 
+                    && isValidNode(incoming(), true);
+      allow update: if isSignedIn() && isValidId(nodeId) && existing().userId == request.auth.uid
+                    && isValidNode(incoming(), false)
+                    && incoming().userId == existing().userId
+                    && incoming().diff(existing()).affectedKeys().hasOnly(['label', 'type', 'content', 'source', 'parentId', 'courseId', 'order', 'tags', 'notes', 'examples']);
+      allow delete: if isSignedIn() && isValidId(nodeId) && existing().userId == request.auth.uid;
+    }
+
+    match /links/{linkId} {
+      allow get: if isSignedIn() && isValidId(linkId) && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(linkId) 
+                    && isValidLink(incoming(), true);
+      allow update: if isSignedIn() && isValidId(linkId) && existing().userId == request.auth.uid
+                    && isValidLink(incoming(), false)
+                    && incoming().userId == existing().userId
+                    && incoming().diff(existing()).affectedKeys().hasOnly(['source', 'target', 'label', 'dashed', 'courseId']);
+      allow delete: if isSignedIn() && isValidId(linkId) && existing().userId == request.auth.uid;
+    }
+
+    match /documents/{docId} {
+      allow get: if isSignedIn() && isValidId(docId) && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(docId) 
+                    && isValidDocument(incoming(), true);
+      allow update: if isSignedIn() && isValidId(docId) && existing().userId == request.auth.uid
+                    && isValidDocument(incoming(), false)
+                    && incoming().userId == existing().userId
+                    && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'parsedAt', 'content', 'type', 'size']);
+      allow delete: if isSignedIn() && isValidId(docId) && existing().userId == request.auth.uid;
+    }
+  }
+}

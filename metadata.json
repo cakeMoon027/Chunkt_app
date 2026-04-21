@@ -1,0 +1,5 @@
+{
+  "name": "AI Course Knowledge Graph Assistant",
+  "description": "An AI-powered learning assistant that transforms course documents into interactive knowledge graphs using Gemini.",
+  "requestFramePermissions": []
+}

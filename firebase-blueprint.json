@@ -1,0 +1,95 @@
+{
+  "entities": {
+    "UserPublic": {
+      "title": "UserPublic",
+      "description": "Public user profile (if needed)",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["uid", "createdAt"]
+    },
+    "Course": {
+      "title": "Course",
+      "description": "A course created by a user",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "lastModified": { "type": "number" },
+        "order": { "type": "number" }
+      },
+      "required": ["userId", "title", "createdAt", "lastModified"]
+    },
+    "Node": {
+      "title": "Node",
+      "description": "A node in the knowledge graph",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "courseId": { "type": "string" },
+        "label": { "type": "string" },
+        "type": { "type": "string", "enum": ["chapter", "point", "subpoint", "concept"] },
+        "content": { "type": "string" },
+        "source": { "type": "string" },
+        "parentId": { "type": "string" },
+        "order": { "type": "number" },
+        "tags": { "type": "array" }
+      },
+      "required": ["userId", "label", "type"]
+    },
+    "Link": {
+      "title": "Link",
+      "description": "A link between nodes",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "courseId": { "type": "string" },
+        "source": { "type": "string" },
+        "target": { "type": "string" },
+        "label": { "type": "string" },
+        "dashed": { "type": "boolean" }
+      },
+      "required": ["userId", "source", "target"]
+    },
+    "Document": {
+      "title": "Document",
+      "description": "A document uploaded for a course",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "courseId": { "type": "string" },
+        "name": { "type": "string" },
+        "status": { "type": "string" },
+        "size": { "type": "number" },
+        "parsedAt": { "type": "number" }
+      },
+      "required": ["userId", "name", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/public": {
+      "schema": { "$ref": "#/entities/UserPublic" },
+      "description": "Public profile"
+    },
+    "/courses/{courseId}": {
+      "schema": { "$ref": "#/entities/Course" },
+      "description": "Courses collection"
+    },
+    "/nodes/{nodeId}": {
+      "schema": { "$ref": "#/entities/Node" },
+      "description": "Nodes in the graph"
+    },
+    "/links/{linkId}": {
+      "schema": { "$ref": "#/entities/Link" },
+      "description": "Graph links"
+    },
+    "/documents/{docId}": {
+      "schema": { "$ref": "#/entities/Document" },
+      "description": "Uploaded documents"
+    }
+  }
+}
